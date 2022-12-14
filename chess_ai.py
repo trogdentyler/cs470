@@ -134,7 +134,7 @@ class ChessGame():
 class ChessAI():
     def __init__(self, game: ChessGame, max_depth: int, max_quiescence_depth: int):
         self.game = game
-        
+
         self.max_depth = max_depth
         self.max_quiescence_depth = max_quiescence_depth
 
@@ -177,7 +177,20 @@ class ChessAI():
         best_move = chess.Move.null()
         max_value = -np.inf
 
-        tt_entry = 
+        tt_entry = self.transposition_table.get(board)
+        
+        if tt_entry is not None:
+            if tt_entry.depth >= depth:
+
+                if tt_entry.flag == "EXACT":
+                    return [tt_entry.best_move, tt_entry.value]
+                elif tt_entry.flag == "LOWER":
+                    alpha = max(alpha, tt_entry.value)
+                elif tt_entry.flag == "UPPER":
+                    beta = min(beta, tt_entry.value)
+
+            if alpha >= beta:
+                return [tt_entry.best_move, tt_entry.value]
         
         if depth > self.max_depth:
             print("depth: ", depth, " move: ", best_move, " alpha: ", alpha, " beta: ", beta)
@@ -317,21 +330,6 @@ class TTEntry():
         self.score = score
         self.best_move = best_move
         self.flag = flag
-
-    def __getattribute__(self, __name: str):
-        match __name:
-            case "key":
-                return  self.key
-            case "depth":
-                return self.depth
-            case "score":
-                return self.score
-            case "best_move":
-                return self.best_move
-            case "flag":
-                return self.flag
-            case _:
-                return None
 
 
 app = Flask(__name__)
