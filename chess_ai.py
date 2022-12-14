@@ -324,10 +324,10 @@ class TranspositionTable():
         return key
         
 class TTEntry():
-    def __init__(self, key: int, depth: int, score: float, best_move: chess.Move, flag: str):
+    def __init__(self, key: int, depth: int, value: float, best_move: chess.Move, flag: str):
         self.key = key
         self.depth = depth
-        self.score = score
+        self.value = value
         self.best_move = best_move
         self.flag = flag
 
