@@ -173,9 +173,11 @@ class ChessAI():
         
         return None
 
-    def negamax_alpha_beta(self, board, alpha, beta, depth):
+    def negamax_alpha_beta(self, board: chess.Board, alpha, beta, depth):
         best_move = chess.Move.null()
         max_value = -np.inf
+
+        og_alpha = alpha
 
         tt_entry = self.transposition_table.get(board)
         
@@ -192,12 +194,12 @@ class ChessAI():
             if alpha >= beta:
                 return [tt_entry.best_move, tt_entry.value]
         
-        if depth > self.max_depth:
-            print("depth: ", depth, " move: ", best_move, " alpha: ", alpha, " beta: ", beta)
+        if depth >= self.max_depth:
+            # print("depth: ", depth, " move: ", best_move, " alpha: ", alpha, " beta: ", beta)
             return [best_move, self.quiescence_search(board, alpha, beta, 0)]
         
         for move in board.legal_moves:
-            print("depth: ", depth, " move: ", move, " alpha: ", alpha, " beta: ", beta)
+            # print("depth: ", depth, " move: ", move, " alpha: ", alpha, " beta: ", beta)
             board.push(move)
             board_value = -self.negamax_alpha_beta(board, -beta, -alpha, depth + 1)[-1]
             board.pop()
@@ -212,6 +214,19 @@ class ChessAI():
                 if board_value > alpha:
                     alpha = board_value
             
+            if max_value <= og_alpha:
+                flag = "UPPER"
+            elif max_value >= beta:
+                flag = "LOWER"
+            else:
+                flag = "EXACT"
+                tt_depth = depth
+                tt_best_move = best_move
+                tt_value = max_value
+
+            self.transposition_table.put(board, tt_depth, tt_value, tt_best_move, flag)
+            
+
         return [best_move, max_value]
 
     def quiescence_search(self, board, alpha, beta, depth):
@@ -305,9 +320,9 @@ class TranspositionTable():
 
         return None
 
-    def put(self, board, depth) -> None:
+    def put(self, board, depth, value, best_move, flag) -> None:
         key = self.zobrist_key(board)
-        entry = TTEntry(key, depth, board, "EXACT")
+        entry = TTEntry(key, depth, value, best_move, flag)
         self.transposition_table[key] = entry
 
     def zobrist_key(self, board: chess.Board):
