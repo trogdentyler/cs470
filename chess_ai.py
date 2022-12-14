@@ -134,8 +134,11 @@ class ChessGame():
 class ChessAI():
     def __init__(self, game: ChessGame, max_depth: int, max_quiescence_depth: int):
         self.game = game
+        
         self.max_depth = max_depth
         self.max_quiescence_depth = max_quiescence_depth
+
+        self.transposition_table = TranspositionTable()
 
     def get_move(self) -> chess.Move:
         # get the current board
@@ -173,6 +176,8 @@ class ChessAI():
     def negamax_alpha_beta(self, board, alpha, beta, depth):
         best_move = chess.Move.null()
         max_value = -np.inf
+
+        tt_entry = 
         
         if depth > self.max_depth:
             print("depth: ", depth, " move: ", best_move, " alpha: ", alpha, " beta: ", beta)
