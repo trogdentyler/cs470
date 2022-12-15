@@ -143,6 +143,7 @@ class ChessAI():
     def get_move(self) -> chess.Move:
         # get the current board
         board = self.game.get_board()
+        # board_copy = chess.Board(board.fen())
 
         self.game.increment_move_counter()
 
@@ -155,13 +156,20 @@ class ChessAI():
         # get the best move
         alpha = -np.inf
         beta = np.inf
+
+        best_value = -np.inf
+        best_move = chess.Move.null()
         
         for depth in range(1, self.max_depth + 1):
-            [best_move, _] = self.negamax_alpha_beta(board, alpha, beta, depth)
+            [move, value] = self.negamax_alpha_beta(board, alpha, beta, depth)
 
-        # print("best move: ", best_move)
+            if value > best_value:
+                best_value = value
+                best_move = move
+
         # return the best move
-        return best_move
+        print("best move: ", best_move, " color: ", board.turn)
+        return move
 
     def get_opening_book_move(self, board):
         reader = cpg.MemoryMappedReader("/Users/tylertrogden/Documents/CS470/code/proj/pecg_book.bin")
@@ -178,7 +186,6 @@ class ChessAI():
         max_value = -np.inf
 
         og_alpha = alpha
-        # board_copy = chess.Board(board.fen())
 
         tt_entry = self.transposition_table.get(board)
         
@@ -457,7 +464,8 @@ def undo():
 if __name__ == "__main__":
     # Run Flask Web Page and begin game
     game = ChessGame()
-    ai = ChessAI(game, 3, 3)
+    ai = ChessAI(game, 4, 4)
+    
     board = game.get_board()
     count = game.get_move_counter()
 
