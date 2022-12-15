@@ -155,9 +155,9 @@ class ChessAI():
         # get the best move
         alpha = -np.inf
         beta = np.inf
-        depth = 0
-
-        [best_move, _] = self.negamax_alpha_beta(board, alpha, beta, depth)
+        
+        for depth in range(1, self.max_depth + 1):
+            [best_move, _] = self.negamax_alpha_beta(board, alpha, beta, depth)
 
         # print("best move: ", best_move)
         # return the best move
@@ -173,17 +173,17 @@ class ChessAI():
         
         return None
 
-    def negamax_alpha_beta(self, board: chess.Board, alpha, beta, depth):
+    def negamax_alpha_beta(self, board, alpha, beta, depth):
         best_move = chess.Move.null()
         max_value = -np.inf
 
         og_alpha = alpha
+        # board_copy = chess.Board(board.fen())
 
         tt_entry = self.transposition_table.get(board)
         
         if tt_entry is not None:
             if tt_entry.depth >= depth:
-
                 if tt_entry.flag == "EXACT":
                     return [tt_entry.best_move, tt_entry.value]
                 elif tt_entry.flag == "LOWER":
@@ -194,16 +194,16 @@ class ChessAI():
             if alpha >= beta:
                 return [tt_entry.best_move, tt_entry.value]
         
-        if depth >= self.max_depth:
+        if depth <= 0:
             # print("depth: ", depth, " move: ", best_move, " alpha: ", alpha, " beta: ", beta)
-            return [best_move, self.quiescence_search(board, alpha, beta, 0)]
-        
+            return [best_move, self.quiescence_search(board, alpha, beta, self.max_quiescence_depth)]
+
         for move in board.legal_moves:
             # print("depth: ", depth, " move: ", move, " alpha: ", alpha, " beta: ", beta)
             board.push(move)
-            board_value = -self.negamax_alpha_beta(board, -beta, -alpha, depth + 1)[-1]
+            board_value = -self.negamax_alpha_beta(board, -beta, -alpha, depth - 1)[-1]
             board.pop()
-            
+
             if board_value >= beta:
                 return [best_move, board_value] # fail soft beta-cutoff
                 
@@ -214,25 +214,24 @@ class ChessAI():
                 if board_value > alpha:
                     alpha = board_value
             
+            tt_depth = depth
+            tt_value = max_value
+            tt_best_move = best_move
             if max_value <= og_alpha:
                 flag = "UPPER"
             elif max_value >= beta:
                 flag = "LOWER"
             else:
                 flag = "EXACT"
-                tt_depth = depth
-                tt_best_move = best_move
-                tt_value = max_value
 
             self.transposition_table.put(board, tt_depth, tt_value, tt_best_move, flag)
-            
 
         return [best_move, max_value]
 
     def quiescence_search(self, board, alpha, beta, depth):
         stand_pat_score = self.evaluation(board)
 
-        if depth > self.max_quiescence_depth:
+        if depth <= 0:
             return stand_pat_score
         
         if stand_pat_score >= beta:
@@ -244,7 +243,7 @@ class ChessAI():
         for move in board.legal_moves:
             if board.is_capture(move):
                 board.push(move)
-                score = -self.quiescence_search(board, -beta, -alpha, depth + 1)
+                score = -self.quiescence_search(board, -beta, -alpha, depth - 1)
                 board.pop()
                 
                 if( score >= beta ):
@@ -295,18 +294,18 @@ class TranspositionTable():
         self.transposition_table = defaultdict(TTEntry)
 
         self.piece_constants = {
-            (chess.PAWN, chess.WHITE): 1, 
-            (chess.KNIGHT, chess.WHITE): 2, 
-            (chess.BISHOP, chess.WHITE): 3, 
-            (chess.ROOK, chess.WHITE): 4, 
-            (chess.QUEEN, chess.WHITE): 5, 
-            (chess.KING, chess.WHITE): 6, 
-            (chess.PAWN, chess.BLACK): 7, 
-            (chess.KNIGHT, chess.BLACK): 8, 
-            (chess.BISHOP, chess.BLACK): 9, 
-            (chess.ROOK, chess.BLACK): 10, 
-            (chess.QUEEN, chess.BLACK): 11, 
-            (chess.KING, chess.BLACK): 12
+            (chess.PAWN, chess.WHITE): 0, 
+            (chess.KNIGHT, chess.WHITE): 1, 
+            (chess.BISHOP, chess.WHITE): 2, 
+            (chess.ROOK, chess.WHITE): 3, 
+            (chess.QUEEN, chess.WHITE): 4, 
+            (chess.KING, chess.WHITE): 5, 
+            (chess.PAWN, chess.BLACK): 6, 
+            (chess.KNIGHT, chess.BLACK): 7, 
+            (chess.BISHOP, chess.BLACK): 8, 
+            (chess.ROOK, chess.BLACK): 9, 
+            (chess.QUEEN, chess.BLACK): 10, 
+            (chess.KING, chess.BLACK): 11
          }
 
         for i in range(64):
