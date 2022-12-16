@@ -92,25 +92,8 @@ class EvaluationModel(pl.LightningModule):
     dataset = EvaluationDataset(count=LABEL_COUNT)
     return DataLoader(dataset, batch_size=self.batch_size, num_workers=2, pin_memory=True)
 
-# configs = [
-#            {"layer_count": 4, "batch_size": 512},
-#            {"layer_count": 6, "batch_size": 1024},
-#            ]
-
 model_4_layer = EvaluationModel(layer_count=4, batch_size=512, learning_rate=1e-3)
 model_6_layer = EvaluationModel(layer_count=6, batch_size=1024, learning_rate=1e-3)
-
-# for config in configs:
-#   # version_name = f'{int(time.time())}-batch_size-{config["batch_size"]}-layer_count-{config["layer_count"]}'
-#   # logger = pl.loggers.TensorBoardLogger("lightning_logs", name="chessml", version=version_name)
-#   # trainer = pl.Trainer(gpus=1,precision=16,max_epochs=1,auto_lr_find=True,logger=logger)
-#   model = EvaluationModel(layer_count=config["layer_count"],batch_size=config["batch_size"],learning_rate=1e-3)
-#   # trainer.tune(model)
-#   # lr_finder = trainer.tuner.lr_find(model, min_lr=1e-6, max_lr=1e-3, num_training=25)
-#   # fig = lr_finder.plot(suggest=True)
-#   # fig.show()
-#   # trainer.fit(model)
-
 
 class ChessGame():
     def __init__(self, open_game=8) -> None:
@@ -338,8 +321,8 @@ class ChessAI():
         return [best_move, max_value]
 
     def quiescence_search(self, board, alpha, beta, depth):
-        # stand_pat_score = self.evaluation(board)
-        stand_pat_score = self.evaluation_model(board) # ML evaluation; similar to Stockfish
+        stand_pat_score = self.evaluation(board)
+        # stand_pat_score = self.evaluation_model(board) # ML evaluation; similar to Stockfish
 
         if depth <= 0:
             return stand_pat_score
@@ -398,7 +381,9 @@ class ChessAI():
                 return -score
 
     def evaluation_model(self, board):
-        return self.model(board.fen())
+        fen_string = board.fen()
+        fen_tensor = torch.tensor([fen_string])
+        return self.model(fen_tensor)
 
 class TranspositionTable():
     def __init__(self):
