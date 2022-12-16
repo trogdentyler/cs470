@@ -12,6 +12,106 @@ from uuid import uuid1
 from collections import defaultdict
 from flask import Flask, Response, request
 
+# ML imports
+import os
+import torch
+import numpy as np
+import base64
+import pytorch_lightning as pl
+import torch.nn.functional as F
+from peewee import *
+from torch import nn
+from torch.utils.data import Dataset, DataLoader, IterableDataset, random_split
+from random import randrange
+from collections import OrderedDict
+
+db = SqliteDatabase('../2021-07-31-lichess-evaluations-37MM.db')
+
+class Evaluations(Model):
+  id = IntegerField()
+  fen = TextField()
+  binary = BlobField()
+  eval = FloatField()
+
+  class Meta:
+    database = db
+
+  def binary_base64(self):
+    return base64.b64encode(self.binary)
+
+db.connect()
+
+class EvaluationDataset(IterableDataset):
+  def __init__(self, count):
+    self.count = count
+  def __iter__(self):
+    return self
+  def __next__(self):
+    idx = randrange(self.count)
+    return self[idx]
+  def __len__(self):
+    return self.count
+  def __getitem__(self, idx):
+    eval = Evaluations.get(Evaluations.id == idx+1)
+    bin = np.frombuffer(eval.binary, dtype=np.uint8)
+    bin = np.unpackbits(bin, axis=0).astype(np.single) 
+    eval.eval = max(eval.eval, -15)
+    eval.eval = min(eval.eval, 15)
+    ev = np.array([eval.eval]).astype(np.single) 
+    return {'binary':bin, 'eval':ev}    
+
+LABEL_COUNT = 37164639
+dataset = EvaluationDataset(count=LABEL_COUNT)
+
+class EvaluationModel(pl.LightningModule):
+  def __init__(self,learning_rate=1e-3,batch_size=1024,layer_count=10):
+    super().__init__()
+    self.batch_size = batch_size
+    self.learning_rate = learning_rate
+    layers = []
+    for i in range(layer_count-1):
+      layers.append((f"linear-{i}", nn.Linear(808, 808)))
+      layers.append((f"relu-{i}", nn.ReLU()))
+    layers.append((f"linear-{layer_count-1}", nn.Linear(808, 1)))
+    self.seq = nn.Sequential(OrderedDict(layers))
+
+  def forward(self, x):
+    return self.seq(x)
+
+  def training_step(self, batch, batch_idx):
+    x, y = batch['binary'], batch['eval']
+    y_hat = self(x)
+    loss = F.l1_loss(y_hat, y)
+    self.log("train_loss", loss)
+    return loss
+
+  def configure_optimizers(self):
+    return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+
+  def train_dataloader(self):
+    dataset = EvaluationDataset(count=LABEL_COUNT)
+    return DataLoader(dataset, batch_size=self.batch_size, num_workers=2, pin_memory=True)
+
+# configs = [
+#            {"layer_count": 4, "batch_size": 512},
+#            {"layer_count": 6, "batch_size": 1024},
+#            ]
+
+model_4_layer = EvaluationModel(layer_count=4, batch_size=512, learning_rate=1e-3)
+model_6_layer = EvaluationModel(layer_count=6, batch_size=1024, learning_rate=1e-3)
+
+# for config in configs:
+#   # version_name = f'{int(time.time())}-batch_size-{config["batch_size"]}-layer_count-{config["layer_count"]}'
+#   # logger = pl.loggers.TensorBoardLogger("lightning_logs", name="chessml", version=version_name)
+#   # trainer = pl.Trainer(gpus=1,precision=16,max_epochs=1,auto_lr_find=True,logger=logger)
+#   model = EvaluationModel(layer_count=config["layer_count"],batch_size=config["batch_size"],learning_rate=1e-3)
+#   # trainer.tune(model)
+#   # lr_finder = trainer.tuner.lr_find(model, min_lr=1e-6, max_lr=1e-3, num_training=25)
+#   # fig = lr_finder.plot(suggest=True)
+#   # fig.show()
+#   # trainer.fit(model)
+
+
 class ChessGame():
     def __init__(self, open_game=8) -> None:
         self.board = chess.Board()
@@ -132,13 +232,15 @@ class ChessGame():
         return squares
 
 class ChessAI():
-    def __init__(self, game: ChessGame, max_depth: int, max_quiescence_depth: int):
+    def __init__(self, game: ChessGame, max_depth: int, max_quiescence_depth: int, model: Model):
         self.game = game
 
         self.max_depth = max_depth
         self.max_quiescence_depth = max_quiescence_depth
 
         self.transposition_table = TranspositionTable()
+
+        self.model = model
 
     def get_move(self) -> chess.Move:
         # get the current board
@@ -236,7 +338,8 @@ class ChessAI():
         return [best_move, max_value]
 
     def quiescence_search(self, board, alpha, beta, depth):
-        stand_pat_score = self.evaluation(board)
+        # stand_pat_score = self.evaluation(board)
+        stand_pat_score = self.evaluation_model(board) # ML evaluation; similar to Stockfish
 
         if depth <= 0:
             return stand_pat_score
@@ -293,6 +396,9 @@ class ChessAI():
                 return score
             else:
                 return -score
+
+    def evaluation_model(self, board):
+        return self.model(board.fen())
 
 class TranspositionTable():
     def __init__(self):
@@ -464,7 +570,7 @@ def undo():
 if __name__ == "__main__":
     # Run Flask Web Page and begin game
     game = ChessGame()
-    ai = ChessAI(game, 4, 4)
+    ai = ChessAI(game, 4, 4, model_4_layer)
     
     board = game.get_board()
     count = game.get_move_counter()
