@@ -1,6 +1,6 @@
 # CS 470 Semester Project
 
-## _______________________________________________________________________________________
+## ___________________________________________________________________________
 
 I originally had decided to create a RISK agent for the semester project but soon realized, after looking at the 
 provided code, that most of the ideas that I wanted to implement has already been done. So, in the end, I decided
