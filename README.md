@@ -3,7 +3,7 @@
 ## Semester Project
 
 I originally had decided to create a RISK agent for the semester project but soon realized, after looking at the 
-provided code, that most of the ideas that I wanted to implement has already been done. So, in the end, I decided
+provided code, that most of the ideas that I wanted to implement had already been done. So, in the end, I decided
 to start from stratch and make my own chess playing agent.
 
 To do this I used several guides online and borrowed code for specific sections of my project. Most of the code is
